@@ -45,7 +45,7 @@ namespace ToDoList
                 switch (userchoice)
                 {
                     case "1":
-                        ShowTasks(taskmanager);
+                        TaskViews.ShowTasks(taskmanager);
                         break;
                     case "2":
                         AddTask(taskmanager);
@@ -67,75 +67,6 @@ namespace ToDoList
                         Console.ForegroundColor = ConsoleColor.Red;
                         Console.WriteLine("Invalid choice. Please try again!");
                         Console.ResetColor();
-                        Console.ReadKey();
-                        break;
-                }
-            }
-        }
-
-        // Show tasks, with sorting and filtering options
-        private static void ShowTasks(TaskManager manager)
-        {
-            // Start view: only TODO tasks, sorted by date
-            var currentView = manager.Tasks
-                .Where(task => !task.IsDone)
-                .OrderBy(task => task.DueDate)
-                .ToList();
-
-            while (true)
-            {
-                Console.Clear();
-                Console.WriteLine("Show Tasks");
-
-                // show whatever the current view is
-                PrintTaskTable(currentView);
-
-                Console.WriteLine();
-                Console.WriteLine("View options:");
-                FancyUi.ResetRainbow();
-                FancyUi.WriteMenuOption("1", "Show TODO tasks sorted by date");
-                FancyUi.WriteMenuOption("2", "Show ALL tasks sorted by date");
-                FancyUi.WriteMenuOption("3", "Show ALL tasks sorted by project");
-                FancyUi.WriteMenuOption("4", "Filter TODO tasks by project");
-                Console.WriteLine("(B) Back");
-                Console.Write("\nChoice: ");
-
-                string? choice = Console.ReadLine();
-                if (IsBack(choice)) return;
-
-                switch (choice?.Trim().ToLowerInvariant())
-                {
-                    case "1":
-                        currentView = manager.Tasks
-                            .Where(task => !task.IsDone)
-                            .OrderBy(task => task.DueDate)
-                            .ToList();
-                        break;
-
-                    case "2":
-                        currentView = manager.GetTasksSortedByDate();
-                        break;
-
-                    case "3":
-                        currentView = manager.GetTasksSortedByProject();
-                        break;
-
-                    case "4":
-                        Console.Write("\nProject name (or B to go back): ");
-                        string? project = Console.ReadLine();
-                        if (IsBack(project)) break;
-
-                        currentView = manager.FilterByProject(project!)
-                            .Where(task => !task.IsDone)
-                            .OrderBy(task => task.DueDate)
-                            .ToList();
-                        break;
-
-                    default:
-                        Console.ForegroundColor = ConsoleColor.Red;
-                        Console.WriteLine("\nInvalid choice. Try again.");
-                        Console.ResetColor();
-                        Console.WriteLine("\nPress any key to continue...");
                         Console.ReadKey();
                         break;
                 }
@@ -235,7 +166,7 @@ namespace ToDoList
             Console.Clear();
             Console.WriteLine("All tasks");
             var all = manager.GetTasksSortedByDate();
-            PrintTaskTable(all);
+            TaskViews.PrintTaskList(all);
 
             Console.Write("\nEnter ID to edit (B = back): ");
             string? idInput = Console.ReadLine();
@@ -245,10 +176,23 @@ namespace ToDoList
             Console.WriteLine("\nEdit options:");
             FancyUi.ResetRainbow();
             FancyUi.WriteMenuOption("1", "Update task");
-            FancyUi.WriteMenuOption("2", "Mark as done");
+
+            var selectedTask = manager.Tasks.FirstOrDefault(t => t.Id == id);
+            if (selectedTask == null) return;
+
+            if (selectedTask.IsDone)
+            {
+                FancyUi.WriteMenuOption("2", "Mark as TODO");
+            }
+            else
+            {
+                FancyUi.WriteMenuOption("2", "Mark as done");
+            }
+
             FancyUi.WriteMenuOption("3", "Remove");
             Console.WriteLine("(B) Back");
             Console.Write("Choice: ");
+
             string? choice = Console.ReadLine();
             if (IsBack(choice)) return;
 
@@ -263,7 +207,20 @@ namespace ToDoList
                     break;
 
                 case "2":
-                    MarkTasksAsDoneLoop(manager, id);
+                    if (selectedTask.IsDone)
+                    {
+                        manager.MarkTodo(id);
+                        Console.ForegroundColor = ConsoleColor.Green;
+                        Console.WriteLine("\nTask marked as TODO.");
+                    }
+                    else
+                    {
+                        manager.MarkDone(id);
+                        Console.ForegroundColor = ConsoleColor.Green;
+                        Console.WriteLine("\nTask marked as done.");
+                    }
+                    Console.ResetColor();
+                    Console.ReadKey();
                     break;
 
                 case "3":
@@ -274,6 +231,7 @@ namespace ToDoList
                     Console.ReadKey();
                     break;
             }
+
         }
 
         // Loop that lets the user mark several tasks as done in a row.
@@ -313,7 +271,7 @@ namespace ToDoList
                     Console.Clear();
                     Console.WriteLine("All tasks");
                     var all = manager.GetTasksSortedByDate();
-                    PrintTaskTable(all);
+                    TaskViews.PrintTaskList(all);
 
                     Console.Write("\nEnter ID to mark as done (B = back): ");
                     string? idInput = Console.ReadLine();
@@ -349,8 +307,8 @@ namespace ToDoList
 
             DateTime? newDate = null;
 
-            // validates date when user chooses to edit (empty = keep old date) :D
-            if (!string.IsNullOrWhiteSpace(input)) 
+            // validates date when user updaatteeyy :D
+            if (!string.IsNullOrWhiteSpace(input))
             {
                 while (true)
                 {
@@ -382,51 +340,6 @@ namespace ToDoList
             }
 
             manager.EditTask(id, title ?? string.Empty, project ?? string.Empty, newDate);
-        }
-
-        // re-used table printer so style is consistent everywhere
-        private static void PrintTaskTable(List<TodoTask> list)
-        {
-            Console.WriteLine();
-            Console.WriteLine("ID | Status | Date       | Project    | Title");
-            Console.WriteLine("-----------------------------------------------");
-
-            if (list == null || list.Count == 0)
-            {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine("No tasks to show.");
-                Console.ResetColor();
-                return;
-            }
-
-            foreach (var task in list)
-            {
-                var oldColor = Console.ForegroundColor;
-
-                // Colour rows depending on status / due date
-                if (task.IsDone)
-                    Console.ForegroundColor = ConsoleColor.DarkGray;  // completed
-                else if (task.DueDate.Date < DateTime.Today)
-                    Console.ForegroundColor = ConsoleColor.Red;       // overdue
-                else if (task.DueDate.Date == DateTime.Today)
-                    Console.ForegroundColor = ConsoleColor.Yellow;    // due today
-                else
-                    Console.ForegroundColor = ConsoleColor.Green;     // future
-
-                string status = task.IsDone ? "Done" : "Todo";
-
-                //  limit output so it doesn't break the table
-                string project = task.Project ?? "";
-                if (project.Length > 10) project = project.Substring(0, 10);
-
-                string title = task.Title ?? "";
-                if (title.Length > 30) title = title.Substring(0, 27) + "...";
-
-                Console.WriteLine(
-                    $"{task.Id,2} | {status,-5} | {task.DueDate:yyyy-MM-dd} | {project,-10} | {title}");
-
-                Console.ForegroundColor = oldColor;
-            }
         }
 
         // Helper: check if user wants to go back (B/b)

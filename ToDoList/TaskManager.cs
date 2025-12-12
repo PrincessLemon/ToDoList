@@ -66,6 +66,14 @@ namespace ToDoList
                 task.IsDone = true;
         }
 
+        public void MarkTodo(int id)
+        {
+            var task = Tasks.FirstOrDefault(t  => t.Id == id);
+            if (task == null) return;
+
+            task.IsDone = false;
+        }
+
         // Remove task completely from list
         public void RemoveTask(int id)
         {
